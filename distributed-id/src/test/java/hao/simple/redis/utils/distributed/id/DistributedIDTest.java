@@ -39,8 +39,8 @@ public class DistributedIDTest {
     @Test
     public void mockMultiProcess() {
         Thread t1 = new Thread(new TestRunner(), "t1");
-        Thread t2 = new Thread(new TestRunner(), "t2");
         t1.start();
+        Thread t2 = new Thread(new TestRunner(), "t2");
         t2.start();
         t1.join();
         t2.join();
@@ -61,7 +61,7 @@ public class DistributedIDTest {
         public void run() {
             boolean isOwner = false;
             if (id == null) {
-                id = new DistributedID(new Random().nextInt(300));
+                id = new DistributedID(new Random().nextInt(10000));
                 isOwner = true;
             }
             while (times-- > 0) {

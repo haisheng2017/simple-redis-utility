@@ -5,11 +5,19 @@ import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.params.SetParams;
 
+import java.util.List;
+
 @Slf4j
 public class DistributedID {
 
     private static final String DEFAULT = "distributed_id";
-
+    private static final String CAS_LUA = """
+            if ARGV[1] == redis.call('get', KEYS[1]) then
+                return redis.call('set', KEYS[1], ARGV[2], 'xx')
+            else
+                return nil
+            end
+            """;
     private volatile boolean isInit = false;
     private final JedisPool pool;
 
@@ -31,17 +39,16 @@ public class DistributedID {
                 if (!isInit) {
                     try (Jedis jedis = pool.getResource()) {
                         String idStr = jedis.get(key);
-                        long M = 0;
-                        SetParams sp = SetParams.setParams();
+                        String ret;
                         if (idStr == null) {
-                            sp.nx();
+                            ret = jedis.set(key, String.valueOf(lastID), SetParams.setParams().nx());
                         } else {
-                            sp.xx();
-                            M = Long.parseLong(idStr);
+                            long M = Long.parseLong(idStr);
+                            long N = Math.max(lastID, M);
+                            ret = (String) jedis.eval(CAS_LUA, List.of(key), List.of(idStr, String.valueOf(N)));
                         }
-                        long N = Math.max(lastID, M);
-                        String ret = jedis.set(key, String.valueOf(N), sp);
-                        log.debug("Init DistributedID: {}, last: {}", ret, N);
+
+                        log.debug("Init DistributedID: {}, prev: {}, last: {}", ret, idStr, lastID);
                     }
                     isInit = true;
                 }
