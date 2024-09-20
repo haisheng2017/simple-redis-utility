@@ -28,8 +28,12 @@ public class DistributedID {
     }
 
     public DistributedID(String key, long lastID) {
+        this(key, lastID, new JedisPool("localhost", 6379));
+    }
+
+    public DistributedID(String key, long lastID, JedisPool pool) {
         this.key = key;
-        pool = new JedisPool("localhost", 6379);
+        this.pool = pool;
         init(lastID);
     }
 
